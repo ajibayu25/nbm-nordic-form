@@ -1,3 +1,8 @@
+Siap! Aku tambahkan **Berat Badan (kg)** dan **Tinggi Badan (cm)** sebagai field **wajib** dengan validasi rentang yang masuk akal. Field ini ikut dicek sebelum tombol **Kirim** aktif, dan ikut terkirim ke Google Apps Script.
+
+Berikut file HTML lengkap yang sudah diperbarui (tinggal ganti file lamamu):
+
+```html
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -35,11 +40,13 @@
   .item.c { border-left-color:#e67e22; } .item.d { border-left-color:#e74c3c; }
   .btn { border:0; padding:10px 14px; border-radius:999px; cursor:pointer; font-weight:600; color:#fff; background:#2563eb; }
   .btn.red { background:#e11d48; } .btn.gray { background:#64748b; }
-  .btn[disabled]{ opacity:.7; cursor:not-allowed; }
-  .actions { display:flex; gap:10px; flex-wrap:wrap; }
+  .btn[disabled]{ opacity:.6; cursor:not-allowed; filter:grayscale(20%); }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   small.muted { color:#666; }
   .field { display:grid; gap:6px; margin-top:10px; }
   .input, .select { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; }
+  .help { font-size:.9rem; color:#0f172a; }
+  .warn { color:#b91c1c; font-weight:600; }
 </style>
 </head>
 <body>
@@ -56,9 +63,9 @@
       <div class="panel">
         <strong>Cara pakai:</strong>
         <ol>
-          <li>Isi <em>Nama, Umur, Jenis Kelamin</em>.</li>
-          <li>Klik titik di area yang sakit dan pilih grade A/B/C/D.</li>
-          <li>Ulangi untuk area lain, lalu tekan <em>Kirim</em>.</li>
+          <li>Isi <em>Nama, Umur, Jenis Kelamin, Berat Badan, Tinggi Badan</em>.</li>
+          <li>Klik <b>semua</b> titik area (28 titik) dan pilih grade A/B/C/D.</li>
+          <li>Jika sudah lengkap, tombol <em>Kirim</em> aktif.</li>
         </ol>
         <small class="muted">A=Tanpa keluhan · B=Ringan · C=Sedang · D=Berat</small>
       </div>
@@ -70,20 +77,30 @@
         <strong>Data Responden</strong>
         <div class="field">
           <label for="namaInput">Nama</label>
-          <input id="namaInput" class="input" type="text" placeholder="Nama lengkap" />
+          <input id="namaInput" class="input" type="text" placeholder="Nama lengkap" required />
         </div>
         <div class="field">
           <label for="umurInput">Umur</label>
-          <input id="umurInput" class="input" type="number" min="1" max="120" placeholder="contoh: 29" />
+          <input id="umurInput" class="input" type="number" min="1" max="120" placeholder="contoh: 29" required />
         </div>
         <div class="field">
           <label for="jkInput">Jenis Kelamin</label>
-          <select id="jkInput" class="select">
+          <select id="jkInput" class="select" required>
             <option value="">— Pilih —</option>
             <option value="Laki-laki">Laki-laki</option>
             <option value="Perempuan">Perempuan</option>
             <option value="Lainnya">Lainnya</option>
           </select>
+        </div>
+
+        <!-- Tambahan: Berat & Tinggi WAJIB -->
+        <div class="field">
+          <label for="beratInput">Berat Badan (kg)</label>
+          <input id="beratInput" class="input" type="number" min="20" max="300" step="0.1" placeholder="contoh: 65.5" required />
+        </div>
+        <div class="field">
+          <label for="tinggiInput">Tinggi Badan (cm)</label>
+          <input id="tinggiInput" class="input" type="number" min="90" max="250" step="0.1" placeholder="contoh: 170" required />
         </div>
       </div>
 
@@ -106,13 +123,14 @@
         <div id="selectedAreasList" class="list" style="margin-top:8px;">
           <small class="muted">Belum ada area yang dipilih</small>
         </div>
+        <div id="areaCountInfo" class="help" style="margin-top:8px;">0/28 area diisi</div>
       </div>
 
       <div class="panel">
         <div class="actions">
-          <!-- HANYA TOMBOL KIRIM + HAPUS -->
-          <button id="btnKirim" class="btn" onclick="sendResults()">📤 Kirim</button>
+          <button id="btnKirim" class="btn" onclick="sendResults()" disabled>📤 Kirim</button>
           <button class="btn red" onclick="clearAll()">🗑️ Hapus Semua</button>
+          <span id="validationMsg" class="help"></span>
         </div>
       </div>
     </div>
@@ -156,6 +174,7 @@
   ];
 
   // ===== State =====
+  const TOTAL_AREAS = points.length; // 28
   let selectedAreas = {};
   let currentSelectedId = null;
 
@@ -206,29 +225,35 @@
     document.getElementById('currentSelection').style.display = 'none';
     document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
     currentSelectedId = null;
+    updateProgressAndButton();
   }
 
   function updateSelectedAreasList() {
     const list = document.getElementById('selectedAreasList');
     if (Object.keys(selectedAreas).length === 0) {
       list.innerHTML = '<small class="muted">Belum ada area yang dipilih</small>';
-      return;
+    } else {
+      list.innerHTML = '';
+      Object.values(selectedAreas).forEach(a => {
+        const div = document.createElement('div');
+        const cls = {A:'a',B:'b',C:'c',D:'d'}[a.grade] || 'a';
+        div.className = `item ${cls}`;
+        div.innerHTML = `<span><strong>${a.id}. ${a.name}</strong> — Grade ${a.grade}</span>
+                         <button class="btn red" style="padding:6px 10px;" onclick="removeArea('${a.id}')">Hapus</button>`;
+        list.appendChild(div);
+      });
     }
-    list.innerHTML = '';
-    Object.values(selectedAreas).forEach(a => {
-      const div = document.createElement('div');
-      const cls = {A:'a',B:'b',C:'c',D:'d'}[a.grade] || 'a';
-      div.className = `item ${cls}`;
-      div.innerHTML = `<span><strong>${a.id}. ${a.name}</strong> — Grade ${a.grade}</span>
-                       <button class="btn red" style="padding:6px 10px;" onclick="removeArea('${a.id}')">Hapus</button>`;
-      list.appendChild(div);
-    });
+    // Update counter
+    const countEl = document.getElementById('areaCountInfo');
+    const count = Object.keys(selectedAreas).length;
+    countEl.textContent = `${count}/${TOTAL_AREAS} area diisi`;
   }
 
   function removeArea(id) {
     delete selectedAreas[id];
     updateSelectedAreasList();
     updateHotspotStates();
+    updateProgressAndButton();
   }
 
   function clearAll() {
@@ -239,19 +264,63 @@
     document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
     updateHotspotStates();
+    updateProgressAndButton();
+  }
+
+  function isIdentityFilled() {
+    const nama = document.getElementById('namaInput').value.trim();
+    const umur = document.getElementById('umurInput').value.trim();
+    const jk   = document.getElementById('jkInput').value;
+    const berat = document.getElementById('beratInput').value.trim();
+    const tinggi = document.getElementById('tinggiInput').value.trim();
+
+    const umurNum = Number(umur);
+    const beratNum = Number(berat);
+    const tinggiNum = Number(tinggi);
+
+    return (
+      nama.length > 0 &&
+      umur.length > 0 && !Number.isNaN(umurNum) && umurNum >= 1 && umurNum <= 120 &&
+      jk !== '' &&
+      berat.length > 0 && !Number.isNaN(beratNum) && beratNum >= 20 && beratNum <= 300 &&
+      tinggi.length > 0 && !Number.isNaN(tinggiNum) && tinggiNum >= 90 && tinggiNum <= 250
+    );
+  }
+
+  function updateProgressAndButton() {
+    const btn = document.getElementById('btnKirim');
+    const msg = document.getElementById('validationMsg');
+    const count = Object.keys(selectedAreas).length;
+
+    let problems = [];
+    if (!isIdentityFilled()) problems.push('Lengkapi identitas (Nama, Umur 1–120, Jenis Kelamin, Berat 20–300 kg, Tinggi 90–250 cm).');
+    if (count < TOTAL_AREAS) problems.push(`Pilih grade untuk semua area tubuh (${count}/${TOTAL_AREAS}).`);
+
+    if (problems.length === 0) {
+      btn.disabled = false;
+      msg.textContent = 'Semua lengkap, siap dikirim.';
+      msg.classList.remove('warn');
+    } else {
+      btn.disabled = true;
+      msg.textContent = problems.join(' ');
+      msg.classList.add('warn');
+    }
   }
 
   function sendResults() {
-    if (Object.keys(selectedAreas).length === 0) { alert('Belum ada data keluhan.'); return; }
+    // Hard guard: tidak boleh kirim kalau belum lengkap
+    const count = Object.keys(selectedAreas).length;
+    if (!isIdentityFilled() || count < TOTAL_AREAS) {
+      updateProgressAndButton();
+      alert('Form belum lengkap. Mohon isi identitas dan pilih grade untuk semua area.');
+      return;
+    }
 
     const nama = document.getElementById('namaInput').value.trim();
     const umur = document.getElementById('umurInput').value.trim();
     const jk   = document.getElementById('jkInput').value;
-
-    if (!nama || !umur || !jk) {
-      alert('Lengkapi Nama, Umur, dan Jenis Kelamin terlebih dahulu.');
-      return;
-    }
+    const berat = document.getElementById('beratInput').value.trim();
+    const tinggi = document.getElementById('tinggiInput').value.trim();
 
     const btn = document.getElementById('btnKirim');
     btn.disabled = true; btn.textContent = 'Mengirim...';
@@ -262,19 +331,18 @@
       tanggal: new Date().toLocaleDateString('id-ID'),
       waktu: new Date().toLocaleTimeString('id-ID'),
       nama, umur, jk,
+      berat, tinggi, // << kirim juga ke Apps Script
       items
     };
 
-    // Dengan mode no-cors, fetch akan resolve sebagai opaque; jadi kita redirect di finally.
     fetch(GAS_WEB_APP_URL, {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify(payload),
       mode: 'no-cors'
     })
-    .catch(() => {})                // abaikan error jaringan
+    .catch(() => {})                
     .finally(() => {
-      // jeda kecil biar tidak terasa "pindah mendadak"
       setTimeout(() => { window.location.href = THANKS_PAGE; }, 300);
     });
   }
@@ -282,6 +350,16 @@
   // Init
   document.addEventListener('DOMContentLoaded', () => {
     renderHotspots();
+    updateSelectedAreasList();
+    updateProgressAndButton();
+
+    // event input untuk validasi realtime
+    document.getElementById('namaInput').addEventListener('input', updateProgressAndButton);
+    document.getElementById('umurInput').addEventListener('input', updateProgressAndButton);
+    document.getElementById('jkInput').addEventListener('change', updateProgressAndButton);
+    document.getElementById('beratInput').addEventListener('input', updateProgressAndButton);
+    document.getElementById('tinggiInput').addEventListener('input', updateProgressAndButton);
+
     document.querySelectorAll('.scale-btn').forEach(b => b.addEventListener('click', ()=>selectGrade(b)));
   });
 </script>
