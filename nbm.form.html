@@ -42,6 +42,9 @@
   .input, .select { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; }
   .help { font-size:.9rem; color:#0f172a; }
   .warn { color:#b91c1c; font-weight:600; }
+
+  /* kecilkan label counter */
+  .counter { font-size:.85rem; color:#64748b; }
 </style>
 </head>
 <body>
@@ -59,6 +62,7 @@
         <strong>Cara pakai:</strong>
         <ol>
           <li>Isi <em>Nama, Umur, Jenis Kelamin, Berat Badan, Tinggi Badan</em>.</li>
+          <li>Tuliskan <em>Pernyataan Harian</em> (opsional) tentang apa yang dirasakan/aktivitas hari ini.</li>
           <li>Klik <b>semua</b> titik area (28 titik) dan pilih grade A/B/C/D.</li>
           <li>Jika sudah lengkap, tombol <em>Kirim</em> aktif.</li>
         </ol>
@@ -99,6 +103,16 @@
         </div>
       </div>
 
+      <!-- Pernyataan harian (opsional) -->
+      <div class="panel">
+        <strong>Pernyataan Harian <small class="muted">(opsional)</small></strong>
+        <div class="field">
+          <label for="statementInput">Tuliskan keluhan/aktivitas yang dirasakan sepanjang hari ini</label>
+          <textarea id="statementInput" class="input" rows="4" maxlength="800" placeholder="Contoh: Seharian mengetik laporan ±6 jam, terasa kaku di leher dan pergelangan kanan..."></textarea>
+          <small id="statementCounter" class="counter">0/800</small>
+        </div>
+      </div>
+
       <div class="panel" id="currentSelection" style="display:none;">
         <div><strong>Area terpilih:</strong> <span id="selectedAreaName"></span></div>
       </div>
@@ -134,7 +148,7 @@
 
 <script>
   /* URL Web App Apps Script kamu (akhiran /exec) */
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxNoP62M3GEarHna-2z16UtB8mWu9J2d2aRrGwRt6MupdGbFD8LsV_tW6jZtYjFdE35LQ/exec';
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxOfLfFBfZXJY-CaW1YNUiB4w5e9hnF0Y8yVb4_o94M/dev';
   const THANKS_PAGE = 'terimakasih.html'; // file tujuan setelah submit (harus ada di folder yang sama)
 
   /* Nama area 0–27 */
@@ -316,6 +330,7 @@
     const jk   = document.getElementById('jkInput').value;
     const berat = document.getElementById('beratInput').value.trim();
     const tinggi = document.getElementById('tinggiInput').value.trim();
+    const pernyataanHarian = document.getElementById('statementInput').value.trim();
 
     const btn = document.getElementById('btnKirim');
     btn.disabled = true; btn.textContent = 'Mengirim...';
@@ -326,7 +341,8 @@
       tanggal: new Date().toLocaleDateString('id-ID'),
       waktu: new Date().toLocaleTimeString('id-ID'),
       nama, umur, jk,
-      berat, tinggi, // << kirim juga ke Apps Script
+      berat, tinggi,
+      pernyataanHarian, // << ikut dikirim (opsional)
       items
     };
 
@@ -342,11 +358,18 @@
     });
   }
 
+  function updateStatementCounter() {
+    const el = document.getElementById('statementInput');
+    const counter = document.getElementById('statementCounter');
+    counter.textContent = `${el.value.length}/800`;
+  }
+
   // Init
   document.addEventListener('DOMContentLoaded', () => {
     renderHotspots();
     updateSelectedAreasList();
     updateProgressAndButton();
+    updateStatementCounter();
 
     // event input untuk validasi realtime
     document.getElementById('namaInput').addEventListener('input', updateProgressAndButton);
@@ -354,6 +377,7 @@
     document.getElementById('jkInput').addEventListener('change', updateProgressAndButton);
     document.getElementById('beratInput').addEventListener('input', updateProgressAndButton);
     document.getElementById('tinggiInput').addEventListener('input', updateProgressAndButton);
+    document.getElementById('statementInput').addEventListener('input', updateStatementCounter);
 
     document.querySelectorAll('.scale-btn').forEach(b => b.addEventListener('click', ()=>selectGrade(b)));
   });
