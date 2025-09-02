@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nordic Body Map - Form Interaktif</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, Arial, sans-serif; background:#f4f6f8; margin:0; padding:24px; }
+  .container { max-width:1100px; margin:0 auto; background:#fff; border-radius:14px; padding:24px; box-shadow:0 10px 30px rgba(0,0,0,.08); }
+  h1 { margin:0 0 6px; font-weight:600; }
+  .sub { color:#666; margin-bottom:18px; }
+  .wrap { display:flex; gap:24px; flex-wrap:wrap; }
+  .left, .right { flex:1 1 380px; }
+
+  .body-diagram { position:relative; border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#fafafa; }
+  .nbm-img { width:100%; height:auto; display:block; }
+  #hotspotLayer { position:absolute; inset:0; }
+
+  .hotspot.body-point {
+    position:absolute; width:22px; height:22px; border-radius:50%;
+    background:rgba(52,152,219,.85); border:2px solid #fff; cursor:pointer; transition:transform .15s ease;
+  }
+  .hotspot.body-point:hover { transform:scale(1.12); }
+  .hotspot.selected { outline:3px solid #fff; box-shadow:0 0 0 3px #e74c3c; }
+
+  .panel { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:16px; }
+  .scale-buttons { display:flex; gap:8px; flex-wrap:wrap; }
+  .scale-btn { border:2px solid #cbd5e1; background:#fff; border-radius:999px; padding:10px 14px; cursor:pointer; font-weight:600; }
+  .scale-btn.active { background:#e74c3c; color:#fff; border-color:#c0392b; }
+  .list { display:grid; gap:8px; }
+  .item { display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid #e5e7eb; border-left:5px solid #3498db; border-radius:8px; padding:10px 12px; }
+  .item.a { border-left-color:#27ae60; } .item.b { border-left-color:#f39c12; }
+  .item.c { border-left-color:#e67e22; } .item.d { border-left-color:#e74c3c; }
+  .btn { border:0; padding:10px 14px; border-radius:999px; cursor:pointer; font-weight:600; color:#fff; background:#2563eb; }
+  .btn.red { background:#e11d48; } .btn.gray { background:#64748b; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; }
+  small.muted { color:#666; }
+  .field { display:grid; gap:6px; margin-top:10px; }
+  .input, .select { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Nordic Body Map</h1>
+  <div class="sub">Isi data responden, klik titik pada gambar, pilih tingkat keluhan, lalu kirim ke Google Sheet.</div>
+
+  <div class="wrap">
+    <div class="left">
+      <div class="body-diagram">
+        <img src="nbm-back.png" alt="Nordic Body Map (back view)" class="nbm-img" />
+        <div id="hotspotLayer"></div>
+      </div>
+      <div class="panel">
+        <strong>Cara pakai:</strong>
+        <ol>
+          <li>Isi <em>Nama, Umur, Jenis Kelamin</em>.</li>
+          <li>Klik titik di area yang sakit dan pilih grade A/B/C/D.</li>
+          <li>Ulangi untuk area lain, lalu tekan <em>Kirim ke Google Sheet</em>.</li>
+        </ol>
+        <small class="muted">A=Tanpa keluhan · B=Ringan · C=Sedang · D=Berat</small>
+      </div>
+    </div>
+
+    <div class="right">
+      <!-- Data responden -->
+      <div class="panel">
+        <strong>Data Responden</strong>
+        <div class="field">
+          <label for="namaInput">Nama</label>
+          <input id="namaInput" class="input" type="text" placeholder="Nama lengkap" />
+        </div>
+        <div class="field">
+          <label for="umurInput">Umur</label>
+          <input id="umurInput" class="input" type="number" min="1" max="120" placeholder="contoh: 29" />
+        </div>
+        <div class="field">
+          <label for="jkInput">Jenis Kelamin</label>
+          <select id="jkInput" class="select">
+            <option value="">— Pilih —</option>
+            <option value="Laki-laki">Laki-laki</option>
+            <option value="Perempuan">Perempuan</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel" id="currentSelection" style="display:none;">
+        <div><strong>Area terpilih:</strong> <span id="selectedAreaName"></span></div>
+      </div>
+
+      <div class="panel">
+        <div style="margin-bottom:8px;"><strong>Pilih Grade:</strong></div>
+        <div class="scale-buttons">
+          <button class="scale-btn" data-grade="A">A<br><small>Tanpa keluhan</small></button>
+          <button class="scale-btn" data-grade="B">B<br><small>Ringan</small></button>
+          <button class="scale-btn" data-grade="C">C<br><small>Sedang</small></button>
+          <button class="scale-btn" data-grade="D">D<br><small>Berat</small></button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <strong>Daftar Keluhan</strong>
+        <div id="selectedAreasList" class="list" style="margin-top:8px;">
+          <small class="muted">Belum ada area yang dipilih</small>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="actions">
+          <button class="btn" onclick="sendResults()">📤 Kirim ke Google Sheet</button>
+          <button class="btn gray" onclick="exportResults()">📋 Salin ke Clipboard</button>
+          <button class="btn red" onclick="clearAll()">🗑️ Hapus Semua</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* URL Web App Apps Script kamu (akhiran /exec) */
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxqBm_F2s3G91-vUxMBlFmCuUG7N6PLmKpsT21kuo0wfoOgxaBemNhBB4l8h2dfBleM6Q/exec';
+
+  /* Nama area 0–27 */
+  const bodyData = {
+    0:"Nyeri/kaku di leher atas", 1:"Nyeri di leher bawah",
+    2:"Nyeri di bahu kiri", 3:"Nyeri di bahu kanan",
+    4:"Nyeri di lengan atas kiri", 5:"Nyeri di punggung", 6:"Nyeri di lengan atas kanan",
+    7:"Nyeri di pinggang", 8:"Nyeri di pantat", 9:"Nyeri di bagian bawah",
+    10:"Nyeri di siku kiri", 11:"Nyeri di siku kanan",
+    12:"Nyeri di lengan bawah kiri", 13:"Nyeri di lengan bawah kanan",
+    14:"Nyeri di pergelangan kiri", 15:"Nyeri di pergelangan kanan",
+    16:"Nyeri di tangan kiri", 17:"Nyeri di tangan kanan",
+    18:"Nyeri di paha kiri", 19:"Nyeri di paha kanan",
+    20:"Nyeri di lutut kiri", 21:"Nyeri di lutut kanan",
+    22:"Nyeri di betis kiri", 23:"Nyeri di betis kanan",
+    24:"Nyeri di pergelangan kaki kiri", 25:"Nyeri di pergelangan kaki kanan",
+    26:"Nyeri di kaki kiri", 27:"Nyeri di kaki kanan"
+  };
+
+  /* Koordinat titik */
+  const points = [
+    {"id":0,"x":51.84,"y":15.8},{"id":1,"x":51.61,"y":19.46},{"id":2,"x":32.02,"y":24.02},
+    {"id":3,"x":72.36,"y":24.11},{"id":4,"x":30,"y":32},{"id":5,"x":52.77,"y":29.61},
+    {"id":6,"x":77,"y":32},{"id":7,"x":51.84,"y":38.72},{"id":8,"x":51.61,"y":45.24},
+    {"id":9,"x":52.77,"y":52.74},{"id":10,"x":26.72,"y":38.22},{"id":11,"x":78.12,"y":38.04},
+    {"id":12,"x":23.49,"y":45.27},{"id":13,"x":81.35,"y":44.82},{"id":14,"x":20.5,"y":52.12},
+    {"id":15,"x":82.04,"y":52.12},{"id":16,"x":17.27,"y":54.62},{"id":17,"x":86.65,"y":54.88},
+    {"id":18,"x":41.93,"y":64.08},{"id":19,"x":61.99,"y":64.17},{"id":20,"x":45.16,"y":74.8},
+    {"id":21,"x":59.91,"y":74.35},{"id":22,"x":44.93,"y":79.62},{"id":23,"x":59.68,"y":80.25},
+    {"id":24,"x":45.62,"y":89.68},{"id":25,"x":57.84,"y":89.59},{"id":26,"x":45.16,"y":93.34},
+    {"id":27,"x":60.14,"y":93.7}
+  ];
+
+  // ===== State =====
+  let selectedAreas = {};
+  let currentSelectedId = null;
+
+  // Render titik
+  function renderHotspots() {
+    const layer = document.getElementById('hotspotLayer');
+    layer.innerHTML = '';
+    points.forEach(p => {
+      const el = document.createElement('div');
+      el.className = 'hotspot body-point';
+      el.style.left = `calc(${p.x}% - 11px)`;
+      el.style.top  = `calc(${p.y}% - 11px)`;
+      el.dataset.id = String(p.id);
+      el.dataset.name = bodyData[p.id] || `Area ${p.id}`;
+      el.title = `${p.id}. ${bodyData[p.id] || ''}`;
+      el.addEventListener('click', () => selectBodyPart(el));
+      layer.appendChild(el);
+    });
+  }
+
+  // Interaksi Form
+  function selectBodyPart(element) {
+    document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
+    element.classList.add('selected');
+    currentSelectedId = element.dataset.id;
+    const name = element.dataset.name;
+    document.getElementById('currentSelection').style.display = 'block';
+    document.getElementById('selectedAreaName').textContent = `${currentSelectedId}. ${name}`;
+    document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
+  }
+
+  function selectGrade(button) {
+    if (!currentSelectedId) { alert('Pilih area tubuh dulu.'); return; }
+    document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
+    button.classList.add('active');
+    const grade = button.getAttribute('data-grade');
+    selectedAreas[currentSelectedId] = { id: currentSelectedId, name: bodyData[currentSelectedId], grade };
+    updateSelectedAreasList();
+    document.getElementById('currentSelection').style.display = 'none';
+    document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
+    currentSelectedId = null;
+  }
+
+  function updateSelectedAreasList() {
+    const list = document.getElementById('selectedAreasList');
+    if (Object.keys(selectedAreas).length === 0) {
+      list.innerHTML = '<small class="muted">Belum ada area yang dipilih</small>';
+      return;
+    }
+    list.innerHTML = '';
+    Object.values(selectedAreas).forEach(a => {
+      const div = document.createElement('div');
+      const cls = {A:'a',B:'b',C:'c',D:'d'}[a.grade] || 'a';
+      div.className = `item ${cls}`;
+      div.innerHTML = `<span><strong>${a.id}. ${a.name}</strong> — Grade ${a.grade}</span>
+                       <button class="btn red" style="padding:6px 10px;" onclick="removeArea('${a.id}')">Hapus</button>`;
+      list.appendChild(div);
+    });
+  }
+
+  function removeArea(id) { delete selectedAreas[id]; updateSelectedAreasList(); }
+
+  function clearAll() {
+    if (!confirm('Hapus semua data?')) return;
+    selectedAreas = {}; currentSelectedId = null;
+    updateSelectedAreasList();
+    document.getElementById('currentSelection').style.display = 'none';
+    document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
+  }
+
+  function exportResults() {
+    if (Object.keys(selectedAreas).length === 0) { alert('Belum ada data.'); return; }
+    const nama = document.getElementById('namaInput').value.trim() || '-';
+    const umur = document.getElementById('umurInput').value.trim() || '-';
+    const jk   = document.getElementById('jkInput').value || '-';
+
+    let txt = 'HASIL KUESIONER NORDIC BODY MAP\n';
+    txt += '=====================================\n';
+    txt += `Tanggal: ${new Date().toLocaleDateString('id-ID')}\n`;
+    txt += `Waktu: ${new Date().toLocaleTimeString('id-ID')}\n`;
+    txt += `Nama: ${nama}\nUmur: ${umur}\nJenis Kelamin: ${jk}\n\n`;
+    txt += 'KELUHAN:\n';
+    Object.values(selectedAreas).forEach((a,i)=>{ txt += `${i+1}. ${a.id}. ${a.name} - Grade ${a.grade}\n`; });
+    txt += '\nA=Tanpa keluhan | B=Ringan | C=Sedang | D=Berat\n';
+    navigator.clipboard.writeText(txt).then(()=> alert('Disalin ke clipboard!'))
+      .catch(()=> alert('Gagal menyalin.'));
+  }
+
+  function sendResults() {
+    if (Object.keys(selectedAreas).length === 0) { alert('Belum ada data keluhan.'); return; }
+
+    const nama = document.getElementById('namaInput').value.trim();
+    const umur = document.getElementById('umurInput').value.trim();
+    const jk   = document.getElementById('jkInput').value;
+
+    if (!nama || !umur || !jk) {
+      alert('Lengkapi Nama, Umur, dan Jenis Kelamin terlebih dahulu.');
+      return;
+    }
+
+    const items = Object.values(selectedAreas).map(a => ({ id:a.id, nama:a.name, grade:a.grade }));
+    const payload = {
+      responderId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+      tanggal: new Date().toLocaleDateString('id-ID'),
+      waktu: new Date().toLocaleTimeString('id-ID'),
+      nama, umur, jk,
+      items
+    };
+
+    fetch(GAS_WEB_APP_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload),
+      mode: 'no-cors'
+    })
+    .then(()=> alert('Data terkirim ke Google Sheet!'))
+    .catch(err=> alert('Gagal kirim: '+err));
+  }
+
+  // Init
+  document.addEventListener('DOMContentLoaded', () => {
+    renderHotspots();
+    document.querySelectorAll('.scale-btn').forEach(b => b.addEventListener('click', ()=>selectGrade(b)));
+  });
+</script>
+</body>
+</html>
