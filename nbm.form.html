@@ -17,12 +17,13 @@
   .nbm-img { width:100%; height:auto; display:block; }
   #hotspotLayer { position:absolute; inset:0; }
 
-  .hotspot.body-point {
+  .hotspot.body-point{
     position:absolute; width:22px; height:22px; border-radius:50%;
     background:rgba(52,152,219,.85); border:2px solid #fff; cursor:pointer; transition:transform .15s ease;
   }
-  .hotspot.body-point:hover { transform:scale(1.12); }
-  .hotspot.selected { outline:3px solid #fff; box-shadow:0 0 0 3px #e74c3c; }
+  .hotspot.body-point:hover{ transform:scale(1.12); }
+  .hotspot.selected{ outline:3px solid #fff; box-shadow:0 0 0 3px #e74c3c; }
+  .hotspot.filled{ background:#e74c3c; border-color:#fff; }
 
   .panel { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:16px; }
   .scale-buttons { display:flex; gap:8px; flex-wrap:wrap; }
@@ -34,6 +35,7 @@
   .item.c { border-left-color:#e67e22; } .item.d { border-left-color:#e74c3c; }
   .btn { border:0; padding:10px 14px; border-radius:999px; cursor:pointer; font-weight:600; color:#fff; background:#2563eb; }
   .btn.red { background:#e11d48; } .btn.gray { background:#64748b; }
+  .btn[disabled]{ opacity:.7; cursor:not-allowed; }
   .actions { display:flex; gap:10px; flex-wrap:wrap; }
   small.muted { color:#666; }
   .field { display:grid; gap:6px; margin-top:10px; }
@@ -43,12 +45,12 @@
 <body>
 <div class="container">
   <h1>Nordic Body Map</h1>
-  <div class="sub">Isi data responden, klik titik pada gambar, pilih tingkat keluhan, lalu kirim ke Google Sheet.</div>
+  <div class="sub">Isi data responden, klik titik pada gambar, pilih tingkat keluhan, lalu kirim.</div>
 
   <div class="wrap">
     <div class="left">
       <div class="body-diagram">
-        <img src="nbm-back.png" alt="Nordic Body Map (back view)" class="nbm-img" />
+        <img src="https://raw.githubusercontent.com/ajibayu25/nbm-nordic-form/main/nbm-back.png" alt="Nordic Body Map (back view)" class="nbm-img" />
         <div id="hotspotLayer"></div>
       </div>
       <div class="panel">
@@ -56,7 +58,7 @@
         <ol>
           <li>Isi <em>Nama, Umur, Jenis Kelamin</em>.</li>
           <li>Klik titik di area yang sakit dan pilih grade A/B/C/D.</li>
-          <li>Ulangi untuk area lain, lalu tekan <em>Kirim ke Google Sheet</em>.</li>
+          <li>Ulangi untuk area lain, lalu tekan <em>Kirim</em>.</li>
         </ol>
         <small class="muted">A=Tanpa keluhan · B=Ringan · C=Sedang · D=Berat</small>
       </div>
@@ -108,8 +110,8 @@
 
       <div class="panel">
         <div class="actions">
-          <button class="btn" onclick="sendResults()">📤 Kirim ke Google Sheet</button>
-          <button class="btn gray" onclick="exportResults()">📋 Salin ke Clipboard</button>
+          <!-- HANYA TOMBOL KIRIM + HAPUS -->
+          <button id="btnKirim" class="btn" onclick="sendResults()">📤 Kirim</button>
           <button class="btn red" onclick="clearAll()">🗑️ Hapus Semua</button>
         </div>
       </div>
@@ -119,7 +121,8 @@
 
 <script>
   /* URL Web App Apps Script kamu (akhiran /exec) */
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxqBm_F2s3G91-vUxMBlFmCuUG7N6PLmKpsT21kuo0wfoOgxaBemNhBB4l8h2dfBleM6Q/exec';
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz8v8vhyrffFRvgkWdMOqGzeIf1ELUnOCKwXSPno01IR6wiqx-QXGjEY1oZgj43Dxcq1A/exec';
+  const THANKS_PAGE = 'terimakasih.html'; // file tujuan setelah submit (harus ada di folder yang sama)
 
   /* Nama area 0–27 */
   const bodyData = {
@@ -171,6 +174,14 @@
       el.addEventListener('click', () => selectBodyPart(el));
       layer.appendChild(el);
     });
+    updateHotspotStates();
+  }
+
+  function updateHotspotStates() {
+    document.querySelectorAll('.hotspot').forEach(el => {
+      const id = el.dataset.id;
+      if (selectedAreas[id]) el.classList.add('filled'); else el.classList.remove('filled');
+    });
   }
 
   // Interaksi Form
@@ -191,6 +202,7 @@
     const grade = button.getAttribute('data-grade');
     selectedAreas[currentSelectedId] = { id: currentSelectedId, name: bodyData[currentSelectedId], grade };
     updateSelectedAreasList();
+    updateHotspotStates(); // titik jadi merah
     document.getElementById('currentSelection').style.display = 'none';
     document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
     currentSelectedId = null;
@@ -213,7 +225,11 @@
     });
   }
 
-  function removeArea(id) { delete selectedAreas[id]; updateSelectedAreasList(); }
+  function removeArea(id) {
+    delete selectedAreas[id];
+    updateSelectedAreasList();
+    updateHotspotStates();
+  }
 
   function clearAll() {
     if (!confirm('Hapus semua data?')) return;
@@ -222,24 +238,7 @@
     document.getElementById('currentSelection').style.display = 'none';
     document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
-  }
-
-  function exportResults() {
-    if (Object.keys(selectedAreas).length === 0) { alert('Belum ada data.'); return; }
-    const nama = document.getElementById('namaInput').value.trim() || '-';
-    const umur = document.getElementById('umurInput').value.trim() || '-';
-    const jk   = document.getElementById('jkInput').value || '-';
-
-    let txt = 'HASIL KUESIONER NORDIC BODY MAP\n';
-    txt += '=====================================\n';
-    txt += `Tanggal: ${new Date().toLocaleDateString('id-ID')}\n`;
-    txt += `Waktu: ${new Date().toLocaleTimeString('id-ID')}\n`;
-    txt += `Nama: ${nama}\nUmur: ${umur}\nJenis Kelamin: ${jk}\n\n`;
-    txt += 'KELUHAN:\n';
-    Object.values(selectedAreas).forEach((a,i)=>{ txt += `${i+1}. ${a.id}. ${a.name} - Grade ${a.grade}\n`; });
-    txt += '\nA=Tanpa keluhan | B=Ringan | C=Sedang | D=Berat\n';
-    navigator.clipboard.writeText(txt).then(()=> alert('Disalin ke clipboard!'))
-      .catch(()=> alert('Gagal menyalin.'));
+    updateHotspotStates();
   }
 
   function sendResults() {
@@ -254,6 +253,9 @@
       return;
     }
 
+    const btn = document.getElementById('btnKirim');
+    btn.disabled = true; btn.textContent = 'Mengirim...';
+
     const items = Object.values(selectedAreas).map(a => ({ id:a.id, nama:a.name, grade:a.grade }));
     const payload = {
       responderId: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
@@ -263,14 +265,18 @@
       items
     };
 
+    // Dengan mode no-cors, fetch akan resolve sebagai opaque; jadi kita redirect di finally.
     fetch(GAS_WEB_APP_URL, {
       method:'POST',
       headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify(payload),
       mode: 'no-cors'
     })
-    .then(()=> alert('Data terkirim ke Google Sheet!'))
-    .catch(err=> alert('Gagal kirim: '+err));
+    .catch(() => {})                // abaikan error jaringan
+    .finally(() => {
+      // jeda kecil biar tidak terasa "pindah mendadak"
+      setTimeout(() => { window.location.href = THANKS_PAGE; }, 300);
+    });
   }
 
   // Init
