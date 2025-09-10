@@ -22,8 +22,127 @@
     background:rgba(52,152,219,.85); border:2px solid #fff; cursor:pointer; transition:transform .15s ease;
   }
   .hotspot.body-point:hover{ transform:scale(1.12); }
+  .hotspot.body-point:active{ transform:scale(0.95); }
   .hotspot.selected{ outline:3px solid #fff; box-shadow:0 0 0 3px #e74c3c; }
   .hotspot.filled{ background:#e74c3c; border-color:#fff; }
+
+  /* Modal Pop-up */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    opacity: 0;
+    transition: all 0.2s ease;
+  }
+
+  .modal-overlay.show .modal-content {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  .modal-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .modal-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 8px;
+  }
+
+  .modal-subtitle {
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  .modal-grade-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .modal-grade-btn {
+    border: 2px solid #e5e7eb;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+  }
+
+  .modal-grade-btn:hover {
+    border-color: #3b82f6;
+    background: #f8fafc;
+  }
+
+  .modal-grade-btn.grade-a { border-color: #10b981; color: #059669; }
+  .modal-grade-btn.grade-b { border-color: #f59e0b; color: #d97706; }
+  .modal-grade-btn.grade-c { border-color: #ef4444; color: #dc2626; }
+  .modal-grade-btn.grade-d { border-color: #7c3aed; color: #6d28d9; }
+
+  .modal-grade-btn.grade-a:hover { background: #ecfdf5; }
+  .modal-grade-btn.grade-b:hover { background: #fffbeb; }
+  .modal-grade-btn.grade-c:hover { background: #fef2f2; }
+  .modal-grade-btn.grade-d:hover { background: #f5f3ff; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .modal-btn {
+    border: 0;
+    padding: 12px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .modal-btn.primary {
+    background: #3b82f6;
+    color: white;
+  }
+
+  .modal-btn.primary:hover {
+    background: #2563eb;
+  }
+
+  .modal-btn.secondary {
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  .modal-btn.secondary:hover {
+    background: #e5e7eb;
+  }
 
   .panel { background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; padding:16px; margin-bottom:16px; }
   .scale-buttons { display:flex; gap:8px; flex-wrap:wrap; }
@@ -42,15 +161,24 @@
   .input, .select { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; }
   .help { font-size:.9rem; color:#0f172a; }
   .warn { color:#b91c1c; font-weight:600; }
-
-  /* kecilkan label counter */
   .counter { font-size:.85rem; color:#64748b; }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    body { padding: 12px; }
+    .container { padding: 16px; }
+    .wrap { flex-direction: column; gap: 16px; }
+    .modal-content { margin: 20px; }
+    .hotspot.body-point { width: 28px; height: 28px; }
+    .hotspot.body-point { transform: scale(1.1); }
+    .hotspot.body-point:hover { transform: scale(1.3); }
+  }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>Nordic Body Map</h1>
-  <div class="sub">Isi data responden, klik titik pada gambar, pilih tingkat keluhan, lalu kirim.</div>
+  <div class="sub">Isi data responden, klik titik pada gambar untuk memilih grade keluhan, lalu kirim.</div>
 
   <div class="wrap">
     <div class="left">
@@ -63,7 +191,7 @@
         <ol>
           <li>Isi <em>Nama, Umur, Jenis Kelamin, Berat Badan, Tinggi Badan</em>.</li>
           <li>Tuliskan <em>Pernyataan Harian</em> (opsional) tentang apa yang dirasakan/aktivitas hari ini.</li>
-          <li>Klik <b>semua</b> titik area (28 titik) dan pilih grade A/B/C/D.</li>
+          <li>Klik <b>semua</b> titik area (28 titik) dan pilih grade A/B/C/D di pop-up yang muncul.</li>
           <li>Jika sudah lengkap, tombol <em>Kirim</em> aktif.</li>
         </ol>
         <small class="muted">A=Tanpa keluhan · B=Ringan · C=Sedang · D=Berat</small>
@@ -113,20 +241,6 @@
         </div>
       </div>
 
-      <div class="panel" id="currentSelection" style="display:none;">
-        <div><strong>Area terpilih:</strong> <span id="selectedAreaName"></span></div>
-      </div>
-
-      <div class="panel">
-        <div style="margin-bottom:8px;"><strong>Pilih Grade:</strong></div>
-        <div class="scale-buttons">
-          <button class="scale-btn" data-grade="A">A<br><small>Tanpa keluhan</small></button>
-          <button class="scale-btn" data-grade="B">B<br><small>Ringan</small></button>
-          <button class="scale-btn" data-grade="C">C<br><small>Sedang</small></button>
-          <button class="scale-btn" data-grade="D">D<br><small>Berat</small></button>
-        </div>
-      </div>
-
       <div class="panel">
         <strong>Daftar Keluhan</strong>
         <div id="selectedAreasList" class="list" style="margin-top:8px;">
@@ -142,6 +256,39 @@
           <span id="validationMsg" class="help"></span>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pop-up untuk Grade -->
+<div id="gradeModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="modalAreaName">Area Terpilih</div>
+      <div class="modal-subtitle">Pilih tingkat keluhan nyeri yang Anda rasakan</div>
+    </div>
+    
+    <div class="modal-grade-buttons">
+      <button class="modal-grade-btn grade-a" data-grade="A">
+        <div style="font-size: 1.1em; margin-bottom: 4px;">A</div>
+        <div style="font-size: 0.8em;">Tanpa keluhan</div>
+      </button>
+      <button class="modal-grade-btn grade-b" data-grade="B">
+        <div style="font-size: 1.1em; margin-bottom: 4px;">B</div>
+        <div style="font-size: 0.8em;">Ringan</div>
+      </button>
+      <button class="modal-grade-btn grade-c" data-grade="C">
+        <div style="font-size: 1.1em; margin-bottom: 4px;">C</div>
+        <div style="font-size: 0.8em;">Sedang</div>
+      </button>
+      <button class="modal-grade-btn grade-d" data-grade="D">
+        <div style="font-size: 1.1em; margin-bottom: 4px;">D</div>
+        <div style="font-size: 0.8em;">Berat</div>
+      </button>
+    </div>
+    
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeGradeModal()">Batal</button>
     </div>
   </div>
 </div>
@@ -199,7 +346,11 @@
       el.dataset.id = String(p.id);
       el.dataset.name = bodyData[p.id] || `Area ${p.id}`;
       el.title = `${p.id}. ${bodyData[p.id] || ''}`;
-      el.addEventListener('click', () => selectBodyPart(el));
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openGradeModal(el);
+      });
       layer.appendChild(el);
     });
     updateHotspotStates();
@@ -212,29 +363,61 @@
     });
   }
 
-  // Interaksi Form
-  function selectBodyPart(element) {
-    document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
-    element.classList.add('selected');
+  // Modal functions
+  function openGradeModal(element) {
     currentSelectedId = element.dataset.id;
     const name = element.dataset.name;
-    document.getElementById('currentSelection').style.display = 'block';
-    document.getElementById('selectedAreaName').textContent = `${currentSelectedId}. ${name}`;
-    document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
+    
+    document.getElementById('modalAreaName').textContent = `${currentSelectedId}. ${name}`;
+    
+    // Reset semua button
+    document.querySelectorAll('.modal-grade-btn').forEach(btn => {
+      btn.style.background = '';
+      btn.style.borderColor = '';
+    });
+    
+    // Highlight current grade if exists
+    if (selectedAreas[currentSelectedId]) {
+      const currentGrade = selectedAreas[currentSelectedId].grade;
+      const currentBtn = document.querySelector(`.modal-grade-btn[data-grade="${currentGrade}"]`);
+      if (currentBtn) {
+        currentBtn.style.background = '#3b82f6';
+        currentBtn.style.color = 'white';
+        currentBtn.style.borderColor = '#2563eb';
+      }
+    }
+    
+    const modal = document.getElementById('gradeModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
+    
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
   }
 
-  function selectGrade(button) {
-    if (!currentSelectedId) { alert('Pilih area tubuh dulu.'); return; }
-    document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
-    button.classList.add('active');
-    const grade = button.getAttribute('data-grade');
-    selectedAreas[currentSelectedId] = { id: currentSelectedId, name: bodyData[currentSelectedId], grade };
-    updateSelectedAreasList();
-    updateHotspotStates(); // titik jadi merah
-    document.getElementById('currentSelection').style.display = 'none';
-    document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
+  function closeGradeModal() {
+    const modal = document.getElementById('gradeModal');
+    modal.classList.remove('show');
+    setTimeout(() => {
+      modal.style.display = 'none';
+      document.body.style.overflow = '';
+    }, 200);
     currentSelectedId = null;
+  }
+
+  function selectGradeFromModal(grade) {
+    if (!currentSelectedId) return;
+    
+    selectedAreas[currentSelectedId] = { 
+      id: currentSelectedId, 
+      name: bodyData[currentSelectedId], 
+      grade 
+    };
+    
+    updateSelectedAreasList();
+    updateHotspotStates();
     updateProgressAndButton();
+    closeGradeModal();
   }
 
   function updateSelectedAreasList() {
@@ -267,11 +450,10 @@
 
   function clearAll() {
     if (!confirm('Hapus semua data?')) return;
-    selectedAreas = {}; currentSelectedId = null;
+    selectedAreas = {}; 
+    currentSelectedId = null;
     updateSelectedAreasList();
-    document.getElementById('currentSelection').style.display = 'none';
-    document.querySelectorAll('.scale-btn.active').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.body-point.selected').forEach(pt => pt.classList.remove('selected'));
+    closeGradeModal();
     updateHotspotStates();
     updateProgressAndButton();
   }
@@ -342,7 +524,7 @@
       waktu: new Date().toLocaleTimeString('id-ID'),
       nama, umur, jk,
       berat, tinggi,
-      pernyataanHarian, // << ikut dikirim (opsional)
+      pernyataanHarian,
       items
     };
 
@@ -371,7 +553,7 @@
     updateProgressAndButton();
     updateStatementCounter();
 
-    // event input untuk validasi realtime
+    // Event listeners
     document.getElementById('namaInput').addEventListener('input', updateProgressAndButton);
     document.getElementById('umurInput').addEventListener('input', updateProgressAndButton);
     document.getElementById('jkInput').addEventListener('change', updateProgressAndButton);
@@ -379,7 +561,27 @@
     document.getElementById('tinggiInput').addEventListener('input', updateProgressAndButton);
     document.getElementById('statementInput').addEventListener('input', updateStatementCounter);
 
-    document.querySelectorAll('.scale-btn').forEach(b => b.addEventListener('click', ()=>selectGrade(b)));
+    // Modal grade button events
+    document.querySelectorAll('.modal-grade-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const grade = btn.getAttribute('data-grade');
+        selectGradeFromModal(grade);
+      });
+    });
+
+    // Close modal when clicking overlay
+    document.getElementById('gradeModal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) {
+        closeGradeModal();
+      }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeGradeModal();
+      }
+    });
   });
 </script>
 </body>
